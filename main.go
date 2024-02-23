@@ -8,6 +8,7 @@ import (
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/scroll-tech/go-ethereum/eth"
 	"github.com/scroll-tech/go-ethereum/ethclient"
 	"github.com/scroll-tech/go-ethereum/log"
 	"github.com/scroll-tech/go-ethereum/rpc"
@@ -46,7 +47,7 @@ func main() {
 	log.Info("GetNumSkippedTransactions", "nSkipped", nSkipped)
 
 	// GetSkippedTransactionHashes
-	hashList, err := l2GethClient.GetSkippedTransactionHashes(ctx, 0, uint64(nSkipped))
+	hashList, err := l2GethClient.GetSkippedTransactionHashes(ctx, 0, nSkipped)
 	if err != nil {
 		panic(err)
 	}
@@ -64,11 +65,12 @@ func main() {
 	}
 
 	// read txs
-	txs := []*types.Transaction{}
-	for _, tx := range txs {
+	rpcTxs := []*eth.RPCTransaction{}
+	for _, rpcTx := range rpcTxs {
 		// GetTxBlockTraceOnTopOfBlock
-		blockNum := rpc.BlockNumber(0)
-		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNum} /*TODO*/, nil)
+		tx := &types.Transaction{}
+		blockNumber := rpc.BlockNumber(rpcTx.SkipBlockNumber.ToInt().Int64())
+		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNumber}, nil)
 		if err != nil {
 			panic(err)
 		}
