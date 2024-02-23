@@ -9,6 +9,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/scroll-tech/go-ethereum/ethclient"
 	"github.com/scroll-tech/go-ethereum/log"
+	"github.com/scroll-tech/go-ethereum/rpc"
 )
 
 var l2GethEndpoint = "http://localhost:8545"
@@ -37,14 +38,14 @@ func main() {
 	l2GethClient.SetHeader("Accept-Encoding", "gzip")
 
 	// GetNumSkippedTransactions
-	nSkipped, err := l2GethClient.GetNumSkippedTransactions()
+	nSkipped, err := l2GethClient.GetNumSkippedTransactions(ctx)
 	if err != nil {
 		panic(err)
 	}
 	log.Info("GetNumSkippedTransactions", "nSkipped", nSkipped)
 
 	// GetSkippedTransactionHashes
-	hashList, err := l2GethClient.GetSkippedTransactionHashes(0, nSkipped)
+	hashList, err := l2GethClient.GetSkippedTransactionHashes(ctx, 0, uint64(nSkipped))
 	if err != nil {
 		panic(err)
 	}
@@ -54,9 +55,13 @@ func main() {
 
 		// GetSkippedTransaction
 		tx, err := l2GethClient.GetSkippedTransaction(ctx, hash)
+		if err != nil {
+			panic(err)
+		}
 
 		// GetTxBlockTraceOnTopOfBlock
-		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, 0 /*TODO*/, nil)
+		blockNum := rpc.BlockNumber(0)
+		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNum} /*TODO*/, nil)
 
 		// dump trace
 	}
