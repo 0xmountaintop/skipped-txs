@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io"
+	"io/ioutil"
 	"os"
 
 	"github.com/mattn/go-colorable"
@@ -56,12 +58,15 @@ func main() {
 		log.Info("handling tx", "hash", hash, "i", i, "total", nSkipped)
 
 		// GetSkippedTransaction
-		_, err := l2GethClient.GetSkippedTransaction(ctx, hash)
+		tx, err := l2GethClient.GetSkippedTransaction(ctx, hash)
 		if err != nil {
 			panic(err)
 		}
 
-		// dump txs
+		err = dumpTx(tx)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// read txs
@@ -77,4 +82,13 @@ func main() {
 
 		// dump traces
 	}
+}
+
+func dumpTx(tx *eth.RPCTransaction) error {
+	b, err := json.Marshal(tx)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(tx.Hash.Hex()+".json", b, 0644)
 }
