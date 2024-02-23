@@ -38,6 +38,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	log.Info("connected", "l2GethEndpoint", l2GethEndpoint)
 	// Use gzip compression.
 	l2GethClient.SetHeader("Accept-Encoding", "gzip")
 
@@ -90,5 +91,5 @@ func dumpTx(tx *eth.RPCTransaction) error {
 		return err
 	}
 
-	return ioutil.WriteFile(tx.Hash.Hex()+".json", b, 0644)
+	return ioutil.WriteFile("txs/"+tx.Hash.Hex()+".json", b, 0644)
 }
