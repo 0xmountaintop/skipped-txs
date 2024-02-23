@@ -7,6 +7,7 @@ import (
 
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
+	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/ethclient"
 	"github.com/scroll-tech/go-ethereum/log"
 	"github.com/scroll-tech/go-ethereum/rpc"
@@ -54,15 +55,24 @@ func main() {
 		log.Info("handling tx", "hash", hash, "i", i, "total", nSkipped)
 
 		// GetSkippedTransaction
-		tx, err := l2GethClient.GetSkippedTransaction(ctx, hash)
+		_, err := l2GethClient.GetSkippedTransaction(ctx, hash)
 		if err != nil {
 			panic(err)
 		}
 
+		// dump txs
+	}
+
+	// read txs
+	txs := []*types.Transaction{}
+	for _, tx := range txs {
 		// GetTxBlockTraceOnTopOfBlock
 		blockNum := rpc.BlockNumber(0)
 		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNum} /*TODO*/, nil)
+		if err != nil {
+			panic(err)
+		}
 
-		// dump trace
+		// dump traces
 	}
 }
