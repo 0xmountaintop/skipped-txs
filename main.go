@@ -16,7 +16,10 @@ import (
 	"github.com/scroll-tech/go-ethereum/rpc"
 )
 
-var l2GethEndpoint = "http://localhost:8545"
+var (
+	l2GethEndpoint = "http://localhost:8545"
+	dumpTxsDir     = "txs/"
+)
 
 func init() {
 	output := io.Writer(os.Stderr)
@@ -42,6 +45,24 @@ func main() {
 	// Use gzip compression.
 	l2GethClient.SetHeader("Accept-Encoding", "gzip")
 
+	dumpTxs(ctx, l2GethClient)
+
+	// read txs
+	rpcTxs := []*eth.RPCTransaction{}
+	for _, rpcTx := range rpcTxs {
+		// GetTxBlockTraceOnTopOfBlock
+		tx := &types.Transaction{}
+		blockNumber := rpc.BlockNumber(rpcTx.SkipBlockNumber.ToInt().Int64())
+		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNumber}, nil)
+		if err != nil {
+			panic(err)
+		}
+
+		// dump traces
+	}
+}
+
+func dumpTxs(ctx context.Context, l2GethClient *ethclient.Client) {
 	// GetNumSkippedTransactions
 	nSkipped, err := l2GethClient.GetNumSkippedTransactions(ctx)
 	if err != nil {
@@ -69,20 +90,6 @@ func main() {
 			panic(err)
 		}
 	}
-
-	// read txs
-	rpcTxs := []*eth.RPCTransaction{}
-	for _, rpcTx := range rpcTxs {
-		// GetTxBlockTraceOnTopOfBlock
-		tx := &types.Transaction{}
-		blockNumber := rpc.BlockNumber(rpcTx.SkipBlockNumber.ToInt().Int64())
-		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNumber}, nil)
-		if err != nil {
-			panic(err)
-		}
-
-		// dump traces
-	}
 }
 
 func dumpTx(tx *eth.RPCTransaction) error {
@@ -91,5 +98,5 @@ func dumpTx(tx *eth.RPCTransaction) error {
 		return err
 	}
 
-	return ioutil.WriteFile("txs/"+tx.Hash.Hex()+".json", b, 0644)
+	return ioutil.WriteFile(dumpTxsDir+tx.Hash.Hex()+".json", b, 0644)
 }
