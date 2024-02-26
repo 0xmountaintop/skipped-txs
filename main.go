@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	// "path/filepath"
 
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
@@ -17,8 +20,12 @@ import (
 )
 
 var (
-	l2GethEndpoint = "http://localhost:8545"
-	dumpTxsDir     = "txs/"
+	l2GethEndpoint  = "http://localhost:8545"
+	network         = "mainnet" // mainnet or sepolia
+	dumpTxsDir      = fmt.Sprintf("txs/%s/", network)
+	dedupTxsFromDir = fmt.Sprintf("txs/%s/", network)
+	dedupTxsToDir   = fmt.Sprintf("txs/%s/dedupped/", network)
+	readTxsDir      = fmt.Sprintf("txs/%s/dedupped/", network)
 )
 
 func init() {
@@ -45,7 +52,9 @@ func main() {
 	// Use gzip compression.
 	l2GethClient.SetHeader("Accept-Encoding", "gzip")
 
-	dumpTxs(ctx, l2GethClient)
+	// dumpTxs(ctx, l2GethClient)
+
+	dedupTxs()
 
 	// read txs
 	rpcTxs := []*eth.RPCTransaction{}
@@ -59,6 +68,67 @@ func main() {
 		}
 
 		// dump traces
+	}
+}
+
+func dedupTxs() {
+	files, err := ioutil.ReadDir(dedupTxsFromDir)
+	if err != nil {
+		log.Error("ioutil.ReadDir", "err", err)
+		return
+	}
+
+	txDataMap := make(map[string]eth.RPCTransaction)
+	var txs []eth.RPCTransaction
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		data, err := ioutil.ReadFile(dedupTxsFromDir + file.Name())
+		if err != nil {
+			log.Error("ioutil.ReadFile", "err", err)
+			return
+		}
+
+		var tx eth.RPCTransaction
+		if err = json.Unmarshal(data, &tx); err != nil {
+			log.Error("json.Unmarshal", "err", err)
+			return
+		}
+
+		if prev, ok := txDataMap[hex.EncodeToString(tx.Input)]; ok {
+			if tx.SkipReason != prev.SkipReason {
+				log.Error(
+					"tx.SkipReason != prev.SkipReason",
+					"hash", tx.Hash.Hex(),
+					"prev.SkipReason", prev.SkipReason,
+					"tx.SkipReason", tx.SkipReason,
+				)
+			}
+			if tx.Accesses != prev.Accesses {
+				log.Error("tx.Accesses != prev.Accesses", "hash", tx.Hash.Hex())
+			}
+			// if tx.From != prev.From {
+			// 	log.Error("tx.From != prev.From", "hash", tx.Hash.Hex())
+			// }
+		} else {
+			txDataMap[hex.EncodeToString(tx.Input)] = tx
+			txs = append(txs, tx)
+		}
+	}
+
+	for _, tx := range txs {
+		b, err := json.Marshal(tx)
+		if err != nil {
+			log.Error("json.Marshal", "err", err)
+			continue
+		}
+
+		if err := ioutil.WriteFile(fmt.Sprintf("%s%s.json", dedupTxsToDir, tx.Hash.Hex()), b, 0644); err != nil {
+			log.Error("ioutil.WriteFile", "err", err)
+			continue
+		}
 	}
 }
 
@@ -98,5 +168,5 @@ func dumpTx(tx *eth.RPCTransaction) error {
 		return err
 	}
 
-	return ioutil.WriteFile(dumpTxsDir+tx.Hash.Hex()+".json", b, 0644)
+	return ioutil.WriteFile(fmt.Sprintf("%s%s.json", dumpTxsDir, tx.Hash.Hex()), b, 0644)
 }
