@@ -26,6 +26,7 @@ var (
 	dedupTxsFromDir = fmt.Sprintf("txs/%s/", network)
 	dedupTxsToDir   = fmt.Sprintf("txs/%s/dedupped/", network)
 	readTxsDir      = fmt.Sprintf("txs/%s/dedupped/", network)
+	dumpTracesDir   = fmt.Sprintf("traces/%s/", network)
 )
 
 func init() {
@@ -54,20 +55,77 @@ func main() {
 
 	// dumpTxs(ctx, l2GethClient)
 
-	dedupTxs()
+	// dedupTxs()
 
+	getTraces(ctx, l2GethClient)
+}
+
+func getTraces(ctx context.Context, l2GethClient *ethclient.Client) {
 	// read txs
-	rpcTxs := []*eth.RPCTransaction{}
-	for _, rpcTx := range rpcTxs {
-		// GetTxBlockTraceOnTopOfBlock
+	files, err := ioutil.ReadDir(dedupTxsToDir)
+	if err != nil {
+		log.Error("ioutil.ReadDir", "err", err)
+		return
+	}
+
+	var rpcTxs []eth.RPCTransaction
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		data, err := ioutil.ReadFile(dedupTxsToDir + file.Name())
+		if err != nil {
+			log.Error("ioutil.ReadFile", "err", err)
+			return
+		}
+
+		var tx eth.RPCTransaction
+		if err = json.Unmarshal(data, &tx); err != nil {
+			log.Error("json.Unmarshal", "err", err)
+			return
+		}
+
+		rpcTxs = append(rpcTxs, tx)
+	}
+
+	// GetTxBlockTraceOnTopOfBlock
+	for i, rpcTx := range rpcTxs {
+		log.Info("processing", "i", i, "total", len(rpcTxs), "txHash", rpcTx.Hash.Hex())
+
+		b, err := json.Marshal(rpcTx)
+		if err != nil {
+			panic(err)
+		}
+		// fmt.Println(string(b))
+
 		tx := &types.Transaction{}
+		if err := tx.UnmarshalJSON(b); err != nil {
+			panic(err)
+		}
+
+		// b, err = tx.MarshalJSON()
+		// if err != nil {
+		// 	panic(err)
+		// }
+		// fmt.Println(string(b))
+
 		blockNumber := rpc.BlockNumber(rpcTx.SkipBlockNumber.ToInt().Int64())
-		_, err = l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNumber}, nil)
+		traces, err := l2GethClient.GetTxBlockTraceOnTopOfBlock(ctx, tx, rpc.BlockNumberOrHash{BlockNumber: &blockNumber}, nil)
+		if err != nil {
+			log.Error("l2GethClient.GetTxBlockTraceOnTopOfBlock", "txHash", tx.Hash().Hex(), "err", err)
+			continue
+		}
+
+		// dump traces
+		b, err = json.Marshal(traces)
 		if err != nil {
 			panic(err)
 		}
 
-		// dump traces
+		if err := ioutil.WriteFile(fmt.Sprintf("%s%s.json", dumpTracesDir, tx.Hash().Hex()), b, 0644); err != nil {
+			panic(err)
+		}
 	}
 }
 
