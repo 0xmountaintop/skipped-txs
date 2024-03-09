@@ -93,6 +93,12 @@ func getTraces(ctx context.Context, l2GethClient *ethclient.Client) {
 	for i, rpcTx := range rpcTxs {
 		log.Info("processing", "i", i, "total", len(rpcTxs), "txHash", rpcTx.Hash.Hex())
 
+		if rpcTx.Type == "0x7e" || rpcTx.RPCTransaction.Type == "0x7e" {
+			log.Info("L1MsgTx")
+		} else {
+			continue
+		}
+
 		b, err := json.Marshal(rpcTx)
 		if err != nil {
 			panic(err)
