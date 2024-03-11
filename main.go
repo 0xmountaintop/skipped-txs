@@ -91,11 +91,12 @@ func getTraces(ctx context.Context, l2GethClient *ethclient.Client) {
 
 	// GetTxBlockTraceOnTopOfBlock
 	for i, rpcTx := range rpcTxs {
-		log.Info("processing", "i", i, "total", len(rpcTxs), "txHash", rpcTx.Hash.Hex())
 
-		if rpcTx.Type == "0x7e" || rpcTx.RPCTransaction.Type == "0x7e" {
-			log.Info("L1MsgTx")
+		if rpcTx.Type.String() == "0x7e" || rpcTx.RPCTransaction.Type.String() == "0x7e" {
+			log.Info("processing", "i", i, "total", len(rpcTxs), "txHash", rpcTx.Hash.Hex())
+			// log.Info("L1MsgTx, continue")
 		} else {
+			// log.Info("non-L1MsgTx, skip")
 			continue
 		}
 
